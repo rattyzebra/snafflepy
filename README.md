@@ -1,11 +1,6 @@
 # SnafflePy
 Snaffler reimplementation in Python - https://github.com/SnaffCon/Snaffler 
-
-Thank you to MANSPIDER for the helpful code that I stole: https://github.com/blacklanternsecurity/MANSPIDER
-
-Tested with Python 3.10.6
-
-This tool works by first sending a LDAP query to the specified target to discover other domain joined machines, and then attempts to login (authenticated or not) through SMB and retrieve interesting files (currently work in progress). 
+This tool works by first sending a LDAP query to the specified target to discover other domain joined machines, and then attempts to login (authenticated or not) through SMB and retrieve interesting files. 
 
 ### Current Features: 
 SnafflePy includes different options and methods of enumeration. It can discover AD joined computers automatically by performing specific LDAP queries to Active Directory and include them in its target list, or if you want to disable this, it can also manually take in a list of IPs, hostnames, or CIDR ranges as its targets. It can also return every share and filename that is readable on the target network, authenticated or unauthenticated. If the credentials provided fail, then SnafflePy will automatically attempt to login via a Guest user, and if that fails it will attempt to login via a “NULL” session. It also supports the original TOML rule formats from Snaffler and uses them to identify interesting share names and return them to the user. 
@@ -25,8 +20,9 @@ Sometimes you do not always have access to a domain joined windows machine when 
 1. Clone this repository
 
 2. Optional but encouraged, create a virtual enviroment for this project
-
-3. `pip install -r requirements.txt` 
+3. `python -m venv venv`
+4. `source venv/bin/activate`
+5. `pip install -r requirements.txt` 
 
 ## Usage and Options
 ~~~
@@ -70,6 +66,10 @@ options:
 
 <img width="866" alt="Screenshot 2023-08-15 at 3 40 37 PM" src="https://github.com/robert-todora/snafflepy/assets/59801737/5023092f-03cf-4430-a1b2-3dcefa256c99">
 
+
+Thank you to MANSPIDER for the helpful code that I stole: https://github.com/blacklanternsecurity/MANSPIDER
+
+Tested with Python 3.10.6
 
 ## Author Information
 Robert Todora - robert.todora@cisa.dhs.gov
