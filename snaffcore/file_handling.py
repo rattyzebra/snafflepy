@@ -4,6 +4,8 @@ from .errors import *
 from pathlib import Path
 import os
 import termcolor
+import tempfile
+import shutil
 
 
 # RT: Stolen from manspider - https://github.com/blacklanternsecurity/MANSPIDER
@@ -22,18 +24,10 @@ class RemoteFile():
         self.name = name
         self.size = size
         self.smb_client = smb_client
+        self.classification = None
 
-        does_exist = os.path.exists("remotefiles")
-        if not does_exist:
-            log.info("remotefiles directory not present, creating dir")
-            os.makedirs("remotefiles")
-
-        # file_suffix = Path(name).suffix.lower()
-        self.tmp_filename = Path('./remotefiles') / \
-            (self.name)
-
-        # self.tmp_filename = Path('/tmp/.snafflepy') / \
-        #     (random_string(15) + file_suffix)
+        # Use a temporary file for downloading
+        self.tmp_filename = Path(tempfile.gettempdir()) / (random_string(15) + Path(name).suffix.lower())
 
     def get(self, smb_client=None):
         '''
@@ -46,9 +40,7 @@ class RemoteFile():
         if smb_client is None and self.smb_client is None:
             raise FileRetrievalError('Please specify smb_client')
 
-        # memfile = io.BytesIO()
         with open(str(self.tmp_filename), 'wb') as f:
-
             try:
                 smb_client.conn.getFile(self.share, self.name, f.write)
             except Exception as e:
@@ -56,55 +48,38 @@ class RemoteFile():
                 raise FileRetrievalError(
                     f'Error retrieving file "{str(self)}": {str(e)[:150]}')
 
-        # reset cursor back to zero so .read() will return the whole file
-        # memfile.seek(0)
+    def save_to_remotefiles(self, matched_rules):
+        '''
+        Moves the file from the temporary location to the remotefiles directory
+        and logs the matched rules.
+        '''
+        remotefiles_dir = Path('./remotefiles')
+        remotefiles_dir.mkdir(exist_ok=True)
+        
+        # Sanitize the filename to prevent directory traversal
+        sanitized_name = os.path.basename(self.name)
+        destination = remotefiles_dir / sanitized_name
+        
+        # Ensure the destination directory exists
+        destination.parent.mkdir(parents=True, exist_ok=True)
+
+        shutil.move(str(self.tmp_filename), destination)
+
+        rule_names = ", ".join([r['RuleName'] for r in matched_rules])
+        # Get the highest triage color
+        triage_colors = {"Red": 1, "Orange": 2, "Yellow": 3, "Green": 4, "White": 5}
+        highest_triage = "White"
+        for r in matched_rules:
+            if triage_colors.get(r['Triage'], 5) < triage_colors.get(highest_triage, 5):
+                highest_triage = r['Triage']
+        
+        color = highest_triage
+        
+        snaffle_text = termcolor.colored(f"[Snaffled][{color}]", color.lower())
+        log.info(f"{snaffle_text} {str(self)} (Matched: {rule_names})")
 
     def __str__(self):
 
-        return f'\\\\{self.target}\\{self.share}\\{self.name}'
+        return f'\\{self.target}\\{self.share}\\{self.name}'
 
-    def handle_download_error(self, dir_path, err, is_from_go_loud: bool, add_err: bool):
-        # subfiles = []
-        if str(err).find("DIRECTORY"):
-            dir_text = termcolor.colored("[Directory]", 'light_blue')
-
-            if is_from_go_loud:
-                log.info(
-                    f"{dir_text} \\\\{self.target}\\{self.share}\\{dir_path}")
-            try:
-                subfiles = self.smb_client.ls(self.share, str(dir_path))
-                add_err = False
-            
-
-                for subfile in subfiles:
-                    sub_size = subfile.get_filesize()
-                    sub_name = str(dir_path + "\\" + subfile.get_longname())
-
-                    try:
-                        subfile = RemoteFile(
-                            sub_name, self.share, self.target, sub_size)
-                        if is_from_go_loud:
-                            subfile.get(self.smb_client)
-                        # else: 
-                            # is_interest_file(self, self.smb_client, self.share)
-                        add_err = False
-
-                    except FileRetrievalError as e:
-                        # handle_impacket_error(e, subfile.smb_client, subfile.share, sub_name, True)
-                        err = e
-                        add_err = True
-
-                    finally:
-                        if add_err:
-                            # print(error)
-                            self.handle_download_error(
-                                sub_name, err, is_from_go_loud, True)
-                        else:
-                            file_text = termcolor.colored("[File]", 'green')
-                            if is_from_go_loud:
-                                log.info(
-                                    f"{file_text} \\\\{self.target}\\{self.share}\\{sub_name}")
-            except FileListError as e:
-                if is_from_go_loud:
-                    log.error(
-                        f"Access denied, cannot read at {self.target}\\{self.share}\\{dir_path}")
+    

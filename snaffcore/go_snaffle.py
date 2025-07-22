@@ -1,9 +1,11 @@
 import sys
+import os
+import termcolor
 
 from ldap3 import ALL_ATTRIBUTES, Server, Connection, DSA, ALL, SUBTREE
-# from .smb import * 
+from .smb import * 
 from .utilities import *
-# from .file_handling import *
+from .file_handling import *
 from .classifier import *
 from .errors import *
 
@@ -12,7 +14,7 @@ log = logging.getLogger('snafflepy')
 
 def begin_snaffle(options):
 
-    snaff_rules = Rules()
+    snaff_rules = Rules(options.rules)
     snaff_rules.prepare_classifiers()
 
     print("Beginning the snaffle...")
@@ -59,7 +61,7 @@ def begin_snaffle(options):
         for share in smb_client.shares:
             try:
                 if not options.go_loud:
-                    if is_interest_share(share, snaff_rules) == False:
+                    if not is_interest_share(share, snaff_rules):
                         log.debug(f"{share} matched a Discard rule, skipping files inside of this share...")
                         continue
                 
@@ -86,31 +88,63 @@ def snaffle_share(share, path, smb_client, options, snaff_rules):
             if options.go_loud:
                 dir_text = termcolor.colored("[Directory]", 'light_blue')
                 log.info(f"{dir_text} \\{smb_client.server}\\{share}\\{new_path}")
-            snaffle_share(share, new_path, smb_client, options, snaff_rules)
+            if classify_directory(new_path, snaff_rules) is not False:
+                snaffle_share(share, new_path, smb_client, options, snaff_rules)
         else:
+            if options.verbose:
+                log.info(f"[*] Found file: {str(remote_file)}")
+            
             if options.go_loud:
                 try:
                     file_text = termcolor.colored("[File]", 'green')
                     if not options.no_download:
                         remote_file.get(smb_client)
+                        remote_file.save_to_remotefiles([]) # No rules for go_loud
                     log.info(
                         f"{file_text} \\{smb_client.server}\\{share}\\{new_path}")
 
                 except FileRetrievalError as e:
-                    remote_file.handle_download_error(
-                        remote_file.name, e, options.go_loud, False)
+                    log.error(f"Error retrieving file: {remote_file.name} ({e})")
                     
-            else:
-                if size >= options.max_file_snaffle:
-                    pass
-                else:
-                    try:
-                        is_interest_file(remote_file, smb_client, share, options.no_download)
-                    except FileRetrievalError as e:
-                        remote_file.handle_download_error(
-                            remote_file.name, e, options.go_loud, False)
+            elif size < options.max_file_snaffle and options.classification:
+                try:
+                    matched_rules = []
+                    
+                    # 1. Classify by filename
+                    name_rules = classify_file_name(remote_file, snaff_rules)
+                    matched_rules.extend(name_rules)
+                    
+                    # 2. Download and classify by content
+                    file_downloaded = False
+                    if not options.no_download:
+                        try:
+                            remote_file.get(smb_client)
+                            file_downloaded = True
+                        except FileRetrievalError as e:
+                            log.error(f"Error retrieving file for content scan: {remote_file.name} ({e})")
 
-    
+                    if file_downloaded:
+                        content_rules = classify_file_content(remote_file, snaff_rules)
+                        # Add new unique rules
+                        for rule in content_rules:
+                            if rule not in matched_rules:
+                                matched_rules.append(rule)
+                    
+                    # 3. If we have any matches, save the file and report
+                    if matched_rules:
+                        if not options.no_download:
+                            remote_file.save_to_remotefiles(matched_rules)
+                        else:
+                            # If no_download is on, we just print the info without saving
+                            rule_names = ", ".join([r['RuleName'] for r in matched_rules])
+                            triage_colors = [r['Triage'] for r in matched_rules]
+                            color = triage_colors[0] if triage_colors else 'white'
+                            snaffle_text = termcolor.colored("[Snaffle Match]", str(color).lower())
+                            log.info(f"{snaffle_text} {str(remote_file)} (Matched: {rule_names})")
+
+                except Exception as e:
+                    log.error(f"An unexpected error occurred during classification of {remote_file.name}: {e}")
+
                 
            
 

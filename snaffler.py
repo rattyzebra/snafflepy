@@ -41,6 +41,9 @@ def parse_arguments():
     
     parser.add_argument("--no-download", action='store_true', help="Don't download files, just print found file names to stdout - this can only show the top level of files from the share and is unable to recurse into subdirectories.")
 
+    parser.add_argument("-c", "--classification", action='store_true', help="Enable classification of files")
+    parser.add_argument("-r", "--rules", type=str, default=None, help="Path to custom rules directory")
+
     try:
         if len(sys.argv) <= 1:
             parser.print_help()
