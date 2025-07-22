@@ -13,7 +13,7 @@ log.setLevel(logging.INFO)
 
 def parse_arguments():
     syntax_error = False
-    print("SnafflePy by @robert-todora")
+    print("SnafflePy by @robert-todora (modified by @emilyastranova)")
 
     parser = argparse.ArgumentParser(
         add_help=True, prog='snaffler.py', description='A "port" of Snaffler in python')

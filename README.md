@@ -1,33 +1,46 @@
 # SnafflePy
-Snaffler reimplementation in Python - https://github.com/SnaffCon/Snaffler 
-This tool works by first sending a LDAP query to the specified target to discover other domain joined machines, and then attempts to login (authenticated or not) through SMB and retrieve interesting files. 
+A Python-based reimagining of [Snaffler](https://github.com/SnaffCon/Snaffler), designed for finding sensitive information on Windows and Active Directory environments.
 
-### Current Features: 
-SnafflePy includes different options and methods of enumeration. It can discover AD joined computers automatically by performing specific LDAP queries to Active Directory and include them in its target list, or if you want to disable this, it can also manually take in a list of IPs, hostnames, or CIDR ranges as its targets. It can also return every share and filename that is readable on the target network, authenticated or unauthenticated. If the credentials provided fail, then SnafflePy will automatically attempt to login via a Guest user, and if that fails it will attempt to login via a “NULL” session. It also supports the original TOML rule formats from Snaffler and uses them to identify interesting share names and return them to the user. 
-Currently, SnafflePy can identify common password files by extension and name, backup files by extension, and SSN by regex in file content. 
+This tool works by first authenticating to a target machine and, if enabled, using LDAP to discover other domain-joined computers. It then connects to each target via SMB to enumerate shares and files, using a powerful rule-based engine to identify and retrieve sensitive data.
 
-### Features to Add: 
-1. Classifier system from Snaffler to find interesting files
-2. Make it way faster
-3. Output to JSON
+### Current Features:
+- **Cross-Platform:** Run SnafflePy from any machine that can run Python.
+- **Flexible Targeting:** Specify targets by IP, hostname, CIDR range, or from a file.
+- **Automatic Discovery:** Discovers other domain-joined computers via LDAP queries to quickly expand the search scope. This can be disabled for more targeted scans.
+- **Advanced Classification Engine:** Utilizes a sophisticated, rule-based system (inspired by the original Snaffler) to identify interesting files based on:
+    - Share names
+    - Directory names
+    - File names
+    - File content (e.g., regex for credentials, SSNs, private keys)
+- **Customizable Rules:** Comes with a robust set of default rules, but you can easily provide your own custom rule directory to tailor the search to your needs.
+- **Multiple Authentication Methods:** Supports password, NTLM hash, Guest, and NULL session authentication.
+- **Informative Output:** Provides clear, color-coded output indicating which files were found and which were "snaffled" (downloaded), along with the specific rules that were matched.
 
-## Use case:
+### Features to Add:
+1. Make it way faster
+2. Output to JSON
 
-Sometimes you do not always have access to a domain joined windows machine when you want to Snaffle. With this tool, you can "snaffle" from a non windows machine!  
+## Use Case:
+
+Sometimes you don't have access to a domain-joined Windows machine when you want to find sensitive files on a network. With SnafflePy, you can run your enumeration from any system with Python installed.
 
 ## Installation (Linux):
 
-1. Clone this repository
+The recommended way to install SnafflePy is with `pipx` to ensure it's available globally in your environment without dependency conflicts.
 
-2. Optional but encouraged, create a virtual enviroment for this project
-3. `python -m venv venv`
-4. `source venv/bin/activate`
-5. `pip install -r requirements.txt` 
+1.  Install `pipx`: `python3 -m pip install --user pipx`
+2.  Install SnafflePy: `pipx install .`
+3.  Run it! `snafflepy --help`
+
+Alternatively, you can install it in a local virtual environment:
+1.  `python3 -m venv venv`
+2.  `source venv/bin/activate`
+3.  `pip install -r requirements.txt`
 
 ## Usage and Options
-~~~
-SnafflePy by @robert-todora
-usage: snaffler.py [-h] [-u USERNAME] [-p PASSWORD] [-d DOMAIN] [-H HASH] [-v] [--go-loud] [-m size] [-n] [--no-download] targets [targets ...]
+```
+SnafflePy by @robert-todora (modified by @emilyastranova)
+usage: snaffler.py [-h] [-u USERNAME] [-p PASSWORD] [-d DOMAIN] [-H HASH] [-v] [--go-loud] [-m size] [-n] [--no-download] [-c] [-r RULES] targets [targets ...]
 
 A "port" of Snaffler in python
 
@@ -43,28 +56,33 @@ options:
   -d DOMAIN, --domain DOMAIN
                         FQDN domain to authenticate to, if this option is not provided, SnafflePy will attempt to automatically discover the domain for you
   -H HASH, --hash HASH  NT hash for authentication
-  -v, --verbose         Show more info
+  -v, --verbose         Show all files found, not just the ones that are snaffled.
   --go-loud             Don't try to find anything interesting, literally just go through every computer and every share and print out as many files as possible. Use at your own risk
   -m size, --max-file-snaffle size
                         Max filesize to snaffle in bytes (any files over this size will be dropped)
   -n, --disable-computer-discovery
                         Disable computer discovery, requires a list of hosts to do discovery on
-  --no-download         Don't download files, just print found file names to stdout - this can only show the top level of files from the share and is unable to recurse into subdirectories.
-~~~
+  --no-download         Don't download files. Just identify and report matches based on file/share/dir names. Content-based rules will not be evaluated.
+  -c, --classification  Enable classification of files (Requires rules!)
+  -r RULES, --rules RULES
+                        Path to custom rules directory
+```
 
 ## Examples
 
-1. Snaffle all files, directories, and shares and output them to stdout, files will be downloaded to `PATH-TO-PROJECT/remotefiles/` 
+1.  **Standard Snaffle:** Automatically discover the domain, find other computers, and use the default rules to find and download interesting files. The `-v` flag shows all files found, while the final output will show which ones were snaffled.
 
-`python3 snaffler.py <IP> -u <username> -p <password> -d <domain> --go-loud` 
+    `snafflepy <IP> -u <username> -p <password> -v -c`
 
-2. Automatically discover the domain name and identify interesting shares and find a limited number of interesting files from them  
+2.  **Targeted Scan, No Download:** Scan a specific host without discovering others (`-n`) and without downloading any files (`--no-download`). This will only report matches based on share, directory, and file names.
 
-`python3 snaffler.py <IP> -u <username> -p <password> -v`
+    `snafflepy 192.168.1.10 -u <username> -p <password> -n -c --no-download`
 
 ## Output
 
-<img width="866" alt="Screenshot 2023-08-15 at 3 40 37 PM" src="https://github.com/robert-todora/snafflepy/assets/59801737/5023092f-03cf-4430-a1b2-3dcefa256c99">
+The output is color-coded for readability. When a file is downloaded, it's marked as `[Snaffled]` and includes the color-coded triage level and a list of all the rules it matched.
+
+![image](https://github.com/user-attachments/assets/e8c73a9b-e441-428a-88c8-0120814143a3)
 
 
 Thank you to MANSPIDER for the helpful code that I stole: https://github.com/blacklanternsecurity/MANSPIDER
