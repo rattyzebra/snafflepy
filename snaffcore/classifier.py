@@ -4,6 +4,11 @@ import os
 import logging
 # import pprint
 import termcolor
+try:
+    import importlib.resources as pkg_resources
+except ImportError:
+    # Try backported to PY<37 `importlib_resources`.
+    import importlib_resources as pkg_resources
 
 from impacket.smbconnection import SessionError, SMBConnection
 from .file_handling import *
@@ -59,10 +64,15 @@ class Rules:
         self.file_classifiers = []
         self.contents_classifiers = []
         self.postmatch_classifiers = []
-        self.rules_path = rules_path if rules_path else "./snaffcore/DefaultRules/"
+        self.rules_path = rules_path
 
     def prepare_classifiers(self):
-        for root, dirs, files in os.walk(self.rules_path, topdown=False):
+        if self.rules_path:
+            rules_path = self.rules_path
+        else:
+            rules_path = pkg_resources.files('snaffcore') / 'DefaultRules'
+        
+        for root, dirs, files in os.walk(str(rules_path)):
             for name in files:
                 with open(os.path.join(root, name), 'r') as tfile:
                     toml_loaded = toml.load(tfile)
