@@ -3,3 +3,5 @@ snaffcore/__pycache__/
 .vscode
 snafflepy/
 remotefiles/
+build/
+*.egg-info
