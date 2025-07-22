@@ -82,7 +82,7 @@ options:
 
 The output is color-coded for readability. When a file is downloaded, it's marked as `[Snaffled]` and includes the color-coded triage level and a list of all the rules it matched.
 
-![image](https://github.com/user-attachments/assets/e8c73a9b-e441-428a-88c8-0120814143a3)
+![image](./snaffler_screenshot.png)
 
 
 Thank you to MANSPIDER for the helpful code that I stole: https://github.com/blacklanternsecurity/MANSPIDER
