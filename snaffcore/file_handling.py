@@ -56,9 +56,15 @@ class RemoteFile():
         remotefiles_dir = Path('./remotefiles')
         remotefiles_dir.mkdir(exist_ok=True)
         
-        # Sanitize the filename to prevent directory traversal
-        sanitized_name = os.path.basename(self.name)
-        destination = remotefiles_dir / sanitized_name
+        # Sanitize target, share, and file path to prevent traversal
+        # and create the full destination path.
+        sanitized_target = self.target.replace('.', '_').replace(':', '_')
+        
+        # Clean path components to prevent traversal and treat them as relative.
+        clean_share = self.share.replace('..', '').lstrip('/')
+        clean_name = self.name.replace('..', '').lstrip('/')
+
+        destination = remotefiles_dir / sanitized_target / clean_share / clean_name
         
         # Ensure the destination directory exists
         destination.parent.mkdir(parents=True, exist_ok=True)
