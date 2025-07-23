@@ -68,7 +68,7 @@ def begin_snaffle(options):
         log.info("Computer discovery is turned off. Snaffling will only occur on the host(s) specified.")
         options.targets = normal_targets
     else:
-        login = access_ldap_server(normal_targets[0], options.username, options.password)
+        login = access_ldap_server(normal_targets[0], options.username, options.password, options.ssl)
         domain_names = list_computers(login, options.domain)
         options.targets = normal_targets
         for target in domain_names:
@@ -194,7 +194,7 @@ def snaffle_share(share, path, smb_client, options, snaff_rules):
 
 def access_ldap_server(ip, username, password):
     # log.info("Accessing LDAP Server")
-    server = Server(ip, get_info=DSA)
+    server = Server(ip, get_info=DSA, use_ssl=True, port=636) if options.ssl else Server(ip, get_info=DSA)
     try:
         conn = Connection(server, username, password)
         # log.debug(server.schema)

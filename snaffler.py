@@ -48,6 +48,7 @@ def parse_arguments():
     parser.add_argument("--gemini", action='store_true', help="Enable Gemini analysis of files (slows down snaffling, requires GEMINI_API_KEY in .env file)")
     parser.add_argument("--gemini-model", type=str, default="gemini-2.5-flash", help="Gemini model to use for analysis (default: gemini-2.5-flash)")
     parser.add_argument("--exclude", type=str, default=None, help="Regex to exclude files and folders.")
+    parser.add_argument("--ssl", action='store_true', help="Use LDAPS/636")
     try:
         if len(sys.argv) <= 1:
             parser.print_help()
