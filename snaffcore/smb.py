@@ -157,6 +157,14 @@ class SMBClient:
                 # exclude current and parent directory
                 if f.get_longname() not in ['', '.', '..']:
                     yield f
+        except SessionError as e:
+            if "STATUS_ACCESS_DENIED" in str(e):
+                log.warning(f"Access denied to {share}{nt_path}, skipping...")
+                return
+            else:
+                e = handle_impacket_error(e, self)
+                raise FileListError(
+                    f'{e.args}: Error listing files at "{share}{nt_path}"')
         except Exception as e:
             e = handle_impacket_error(e, self)
             raise FileListError(
