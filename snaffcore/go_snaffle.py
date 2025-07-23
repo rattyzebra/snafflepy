@@ -116,7 +116,7 @@ def snaffle_share(share, path, smb_client, options, snaff_rules):
         new_path = os.path.join(path, name)
 
         if options.exclude_regex and options.exclude_regex.search(new_path):
-            log.debug(f"Excluding {new_path} due to exclusion regex.")
+            # log.debug(f"Excluding {new_path} due to exclusion regex.")
             continue
 
         remote_file = RemoteFile(new_path, share, smb_client.server, size, smb_client)

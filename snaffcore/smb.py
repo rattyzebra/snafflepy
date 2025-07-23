@@ -107,8 +107,8 @@ class SMBClient:
                         domain=self.domain,
                     )
 
-                log.debug(
-                    f'{self.server}: Successful login as "{self.username}"')
+                # log.debug(
+                #     f'{self.server}: Successful login as "{self.username}"')
                 return True
 
             except Exception as e:
