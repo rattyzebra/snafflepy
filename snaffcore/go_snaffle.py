@@ -192,9 +192,9 @@ def snaffle_share(share, path, smb_client, options, snaff_rules):
                 
            
 
-def access_ldap_server(ip, username, password):
+def access_ldap_server(ip, username, password, ssl=False):
     # log.info("Accessing LDAP Server")
-    server = Server(ip, get_info=DSA, use_ssl=True, port=636) if options.ssl else Server(ip, get_info=DSA)
+    server = Server(ip, get_info=DSA, use_ssl=True, port=636) if ssl else Server(ip, get_info=DSA)
     try:
         conn = Connection(server, username, password)
         # log.debug(server.schema)
