@@ -82,4 +82,15 @@ class RemoteFile():
 
         return f'\\{self.target}\\{self.share}\\{self.name}'
 
+    def __del__(self):
+        '''
+        Cleans up the temporary file when the object is destroyed.
+        '''
+        try:
+            if os.path.exists(self.tmp_filename):
+                os.remove(self.tmp_filename)
+        except Exception:
+            # Can't do much here, maybe log it
+            pass
+
     

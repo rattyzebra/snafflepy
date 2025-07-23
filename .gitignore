@@ -5,3 +5,5 @@ snafflepy/
 remotefiles/
 build/
 *.egg-info
+gemini_output.json
+.env

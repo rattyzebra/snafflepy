@@ -37,9 +37,20 @@ def make_targets(s):
 
     targets = set()
 
+    if s.startswith('\\'):
+        p = s.strip("'\"").replace('/', '\\').lstrip('\\')
+        parts = [x for x in p.split('\\') if x]
+        if len(parts) >= 2:
+            server = parts[0]
+            share = parts[1]
+            folder = '\\'.join(parts[2:])
+            targets.add(('unc', server, share, folder))
+        return list(targets)
+
     p = Path(s)
     if p.is_dir():
         targets.add(p)
+
 
     else:
         for i in str_to_list(s):

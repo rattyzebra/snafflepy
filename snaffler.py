@@ -2,10 +2,12 @@ import argparse
 import sys
 import logging
 import os
+import json
 
 from snaffcore.go_snaffle import *
 from snaffcore.utilities import *
 from snaffcore.logger import *
+from snaffcore.classifier import GEMINI_RESULTS
 
 log = logging.getLogger('snafflepy')
 log.setLevel(logging.INFO)
@@ -18,7 +20,7 @@ def parse_arguments():
     parser = argparse.ArgumentParser(
         add_help=True, prog='snaffler.py', description='A "port" of Snaffler in python')
     parser.add_argument("targets", nargs='+', type=make_targets,
-                        help="IPs, hostnames, CIDR ranges, or files contains targets to snaffle. If you are providing more than one target, the -n option must be used.")
+                        help="IPs, hostnames, CIDR ranges, UNC paths (e.g. \\SERVER\\Share), or files containing targets to snaffle. If you are providing more than one target, the -n option must be used.")
     parser.add_argument("-u", "--username",
                         type=str, help="domain username")
     parser.add_argument("-p", "--password",
@@ -43,7 +45,9 @@ def parse_arguments():
 
     parser.add_argument("-c", "--classification", action='store_true', help="Enable classification of files")
     parser.add_argument("-r", "--rules", type=str, default=None, help="Path to custom rules directory")
-
+    parser.add_argument("--gemini", action='store_true', help="Enable Gemini analysis of files (slows down snaffling, requires GEMINI_API_KEY in .env file)")
+    parser.add_argument("--gemini-model", type=str, default="gemini-2.5-flash", help="Gemini model to use for analysis (default: gemini-2.5-flash)")
+    parser.add_argument("--exclude", type=str, default=None, help="Regex to exclude files and folders.")
     try:
         if len(sys.argv) <= 1:
             parser.print_help()
@@ -60,11 +64,14 @@ def parse_arguments():
             sys.exit(2)
         else:
             options = parser.parse_args()
+            if options.gemini:
+                log.warning("Gemini analysis is enabled. This will drastically slow down the snaffling process.")
             if options.verbose:
                 log.setLevel('DEBUG')
 
             targets = set()
-            [[targets.add(t) for t in g] for g in options.targets]
+            for target_group in options.targets:
+                targets.update(target_group)
             options.targets = list(targets)
 
             if len(options.targets) > 1 and not options.disable_computer_discovery:
@@ -92,6 +99,13 @@ def main():
     print_banner()
     snaffle_options = parse_arguments()
     begin_snaffle(snaffle_options)
+
+    if snaffle_options.gemini and GEMINI_RESULTS:
+        output_file = "gemini_output.json"
+        with open(output_file, 'w') as f:
+            json.dump(GEMINI_RESULTS, f, indent=4)
+        print(f"Gemini analysis results saved to {output_file}")
+
 
     print("\nI snaffled 'til the snafflin was done")
     print("View log file at ~/.snafflepy/logs/")

@@ -35,28 +35,33 @@ class SMBClient:
             self.lmhash = 'aad3b435b51404eeaad3b435b51404ee'
         else:
             self.lmhash = ''
+        self._shares = None
 
     @property
     def shares(self):
+        if self._shares is None:
+            self._shares = []
+            try:
+                resp = self.conn.listShares()
+                for i in range(len(resp)):
+                    sharename = resp[i]['shi1_netname'][:-1]
+                    remarkname = resp[i]['shi1_remark'][:-1]
+                    # log.info(f'Found share {sharename} on {self.server}, remark {remarkname}')
 
-        try:
-            resp = self.conn.listShares()
-            for i in range(len(resp)):
-                sharename = resp[i]['shi1_netname'][:-1]
-                remarkname = resp[i]['shi1_remark'][:-1]
-                # log.info(f'Found share {sharename} on {self.server}, remark {remarkname}')
+                    share_text = termcolor.colored("[Share]", 'light_yellow')
 
-                share_text = termcolor.colored("[Share]", 'light_yellow')
+                    print(share_text, termcolor.colored(
+                        f"{{Green}} \\{self.server}\\{sharename} ({remarkname})", 'green', 'on_white'))
+                    # log.info(f'{self.server}: Share: {sharename}')
 
-                print(share_text, termcolor.colored(
-                    f"{{Green}} \\\\{self.server}\\{sharename} ({remarkname})", 'green', 'on_white'))
-                # log.info(f'{self.server}: Share: {sharename}')
+                    self._shares.append(sharename)
 
-                yield sharename
-
-        except Exception as e:
-            e = handle_impacket_error(e, self)
-            log.debug(f'{self.server}: Error listing shares: {e}')
+            except Exception as e:
+                e = handle_impacket_error(e, self)
+                log.debug(f'{self.server}: Error listing shares: {e}')
+        
+        for share in self._shares:
+            yield share
 
     def login(self, refresh=False, first_try=True):
         '''

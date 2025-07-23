@@ -8,56 +8,89 @@ from .utilities import *
 from .file_handling import *
 from .classifier import *
 from .errors import *
+from .classifier import analyze_with_gemini
 
 log = logging.getLogger('snafflepy')
 
 
 def begin_snaffle(options):
-
     snaff_rules = Rules(options.rules)
     snaff_rules.prepare_classifiers()
 
     print("Beginning the snaffle...")
 
+    if options.exclude:
+        try:
+            import re
+            options.exclude_regex = re.compile(options.exclude)
+        except re.error as e:
+            log.error(f"Invalid regex for --exclude: {e}")
+            sys.exit(1)
+    else:
+        options.exclude_regex = None
+
+    unc_targets = [t for t in options.targets if isinstance(t, tuple) and t[0] == 'unc']
+    normal_targets = [t for t in options.targets if not (isinstance(t, tuple) and t[0] == 'unc')]
+
+    if unc_targets:
+        log.info("Found UNC paths, targeting them directly.")
+        for _, server, share, folder in unc_targets:
+            log.info(f"Snaffling UNC path: \\{server}\\{share}\\{folder}")
+            smb_client = SMBClient(server, options.username, options.password, options.domain, options.hash)
+            if not smb_client.login():
+                log.error(f"Unable to login to {server}")
+                continue
+            
+            found_share = False
+            for share_name in smb_client.shares:
+                if share_name.lower() == share.lower():
+                    found_share = True
+                    log.info(f"Found matching share '{share_name}', beginning snaffle.")
+                    snaffle_share(share_name, folder, smb_client, options, snaff_rules)
+                    break
+            
+            if not found_share:
+                log.error(f"Could not find the specified share '{share}' on server {server}")
+
+    if not normal_targets:
+        return
+
+    options.targets = normal_targets
+
     # Automatically get domain from target if not provided
     if not options.domain:
-        options.domain = get_domain(options.targets[0])
+        options.domain = get_domain(normal_targets[0])
         if options.domain == "":
             sys.exit(2)
 
     domain_names = []
     if options.disable_computer_discovery:
-        log.info(
-            "Computer discovery is turned off. Snaffling will only occur on the host(s) specified.")
-
+        log.info("Computer discovery is turned off. Snaffling will only occur on the host(s) specified.")
+        options.targets = normal_targets
     else:
-        login = access_ldap_server(
-            options.targets[0], options.username, options.password)
+        login = access_ldap_server(normal_targets[0], options.username, options.password)
         domain_names = list_computers(login, options.domain)
+        options.targets = normal_targets
         for target in domain_names:
-            log.info(
-                f"Found{target}, adding to targets to snaffle...")
+            log.info(f"Found {target}, adding to targets to snaffle...")
             try:
                 options.targets.append(target)
             except Exception as e:
                 log.debug(f"Exception: {e}")
-                log.warning(f"Unable to add{target} to targets to snaffle")
+                log.warning(f"Unable to add {target} to targets to snaffle")
                 continue
 
     if options.go_loud:
-        log.warning(
-            "[GO LOUD ACTIVATED] Enumerating all shares for all files...")
+        log.warning("[GO LOUD ACTIVATED] Enumerating all shares for all files...")
     if options.no_download:
         log.warning("[no-download] is turned on, skipping SSN check...")
-        
-    for target in options.targets:
 
-        smb_client = SMBClient(
-            target, options.username, options.password, options.domain, options.hash)
+    for target in options.targets:
+        smb_client = SMBClient(target, options.username, options.password, options.domain, options.hash)
         if not smb_client.login():
-            log.error(f"Unable to login to{target}")
+            log.error(f"Unable to login to {target}")
             continue
-        
+
         for share in smb_client.shares:
             try:
                 if not options.go_loud:
@@ -81,6 +114,10 @@ def snaffle_share(share, path, smb_client, options, snaff_rules):
         size = file.get_filesize()
         name = file.get_longname()
         new_path = os.path.join(path, name)
+
+        if options.exclude_regex and options.exclude_regex.search(new_path):
+            log.debug(f"Excluding {new_path} due to exclusion regex.")
+            continue
 
         remote_file = RemoteFile(new_path, share, smb_client.server, size, smb_client)
 
@@ -125,6 +162,10 @@ def snaffle_share(share, path, smb_client, options, snaff_rules):
 
                     if file_downloaded:
                         content_rules = classify_file_content(remote_file, snaff_rules)
+                        if options.gemini:
+                            gemini_rule = analyze_with_gemini(remote_file, options.gemini_model)
+                            if gemini_rule:
+                                matched_rules.append(gemini_rule)
                         # Add new unique rules
                         for rule in content_rules:
                             if rule not in matched_rules:
