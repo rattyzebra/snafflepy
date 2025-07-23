@@ -158,8 +158,12 @@ class SMBClient:
                 if f.get_longname() not in ['', '.', '..']:
                     yield f
         except SessionError as e:
-            if "STATUS_ACCESS_DENIED" in str(e):
+            error_string = str(e)
+            if "STATUS_ACCESS_DENIED" in error_string:
                 log.warning(f"Access denied to {share}{nt_path}, skipping...")
+                return
+            if "STATUS_STOPPED_ON_SYMLINK" in error_string:
+                log.warning(f"Symbolic link at {share}{nt_path} caused issues, skipping...")
                 return
             else:
                 e = handle_impacket_error(e, self)
