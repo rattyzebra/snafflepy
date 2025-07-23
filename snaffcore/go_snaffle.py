@@ -196,7 +196,7 @@ def access_ldap_server(ip, username, password, ssl=False):
     # log.info("Accessing LDAP Server")
     server = Server(ip, get_info=DSA, use_ssl=True, port=636) if ssl else Server(ip, get_info=DSA)
     try:
-        conn = Connection(server, username, password, auto_bind=True)
+        conn = Connection(server, username, password, authentication=ldap3.NTLM, auto_bind=True)
         # log.debug(server.schema)
 
         if not conn.bind():
