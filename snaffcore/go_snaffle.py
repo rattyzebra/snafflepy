@@ -162,14 +162,17 @@ def snaffle_share(share, path, smb_client, options, snaff_rules):
 
                     if file_downloaded:
                         content_rules = classify_file_content(remote_file, snaff_rules)
-                        if options.gemini:
-                            gemini_rule = analyze_with_gemini(remote_file, options.gemini_model)
-                            if gemini_rule:
-                                matched_rules.append(gemini_rule)
-                        # Add new unique rules
+                        
+                        # Add new unique rules from content classification
                         for rule in content_rules:
                             if rule not in matched_rules:
                                 matched_rules.append(rule)
+
+                        # If no rules have matched so far, and gemini is enabled, run gemini
+                        if not matched_rules and options.gemini:
+                            gemini_rule = analyze_with_gemini(remote_file, options.gemini_model)
+                            if gemini_rule:
+                                matched_rules.append(gemini_rule)
                     
                     # 3. If we have any matches, save the file and report
                     if matched_rules:
