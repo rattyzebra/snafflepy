@@ -21,7 +21,7 @@ log = logging.getLogger('snafflepy.classifier')
 
 GEMINI_RESULTS = []
 
-def analyze_with_gemini(remote_file, model_name="gemini-1.5-pro-latest"):
+def analyze_with_gemini(remote_file, model_name="gemini-2.5-flash"):
     """
     Analyzes a file's content using the Gemini API to find credentials or other sensitive information like PII.
     Returns a rule-like dictionary if credentials are found, otherwise None.
